@@ -1,15 +1,18 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const port = process.env.PORT || 5000;
+// const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-require('dotenv').config();
+// require('dotenv').config();
 
 app.use(express.json());
 app.use(cors());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@learndb.isqzetk.mongodb.net/?retryWrites=true&w=majority`;
 
+
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@learndb.isqzetk.mongodb.net/?retryWrites=true&w=majority`;
+
+const uri = "mongodb+srv://wonderkin:bZZ2Yb7iO2U3qlrM@learndb.isqzetk.mongodb.net/?retryWrites=true&w=majority";
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -22,7 +25,7 @@ const client = new MongoClient(uri, {
 [];
 async function run() {
   try {
-    // client.connect();
+    client.connect();
 
     const db = client.db("wonderkin").collection("collection0");
 
@@ -128,6 +131,4 @@ run().catch(console.dir);
 
 
 
-app.listen(port, () => {
-  console.log(`wonderKin is running on port: ${port}`);
-});
+app.listen(process.env.PORT || 3000, () => {console.log('listening')})
