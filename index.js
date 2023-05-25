@@ -1,134 +1,141 @@
+const dotenv = require("dotenv");
 const express = require("express");
-const app = express();
 const cors = require("cors");
-// const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-// require('dotenv').config();
 
-app.use(express.json());
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 5000;
+
 app.use(cors());
+app.use(express.json());
 
-
-
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@learndb.isqzetk.mongodb.net/?retryWrites=true&w=majority`;
-
-const uri = "mongodb+srv://wonderkin:bZZ2Yb7iO2U3qlrM@learndb.isqzetk.mongodb.net/?retryWrites=true&w=majority";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
+const mdbClient = new MongoClient(process.env.MONGODB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
   },
 });
-[];
-async function run() {
+
+(async (_) => {
   try {
-    client.connect();
+    const categories = mdbClient.db("wonderkin").collection("collection0");
+    const toys = mdbClient.db("wonderkin").collection("collection0");
 
-    const db = client.db("wonderkin").collection("collection0");
+    app.get("/categories", async (req, res) => {
+      let result;
 
-// get all toy data
-    app.get("/", async (req, res) => {
-      const result = await db.find().limit(20).toArray();
+      if (req.query.id) {
+        const query = { _id: new ObjectId(req.query.id) };
+        result = await categories.findOne(query);
+      } else {
+        const cursor = categories.find();
+        result = await cursor.toArray();
+      }
+
       res.send(result);
     });
 
-    app.get("/category", async (req, res) => {
-      let query = {};
-      query = { category: req.query.category };
-      const result = await db.find(query).limit(6).toArray();
+    app.get("/toys", async (req, res) => {
+      let result;
+
+      if (req.query.id) {
+        const query = { _id: new ObjectId(req.query.id) };
+        result = await toys.findOne(query);
+      } else if (req.query.cid) {
+        const query = { category_id: req.query.cid };
+        const cursor = toys.find(query);
+        result = await cursor.toArray();
+      } else {
+        let query = {},
+          cursor;
+
+        if (req.query.uid) query = { seller_id: req.query.uid };
+
+        if (req.query.search)
+          query = {
+            ...query,
+            name: { $regex: req.query.search, $options: "i" },
+          };
+
+        if (req.query.sort) {
+          let sort = 1;
+
+          req.query.sort !== "asc" ? (sort = -1) : null;
+
+          cursor = toys
+            .find(query)
+            .limit(+req.query.limit || 0)
+            .sort({ price: sort });
+        } else {
+          cursor = toys.find(query).limit(+req.query.limit || 0);
+        }
+
+        result = await cursor.toArray();
+      }
+
       res.send(result);
     });
 
+    app.get("/toys/discount", async (req, res) => {
+      const query = { discount: true };
+      const cursor = toys.find(query);
+      const result = await cursor.toArray();
 
- // get by email
-    app.get("/my-toys", async (req, res) => {
-      let query = {};
-      query = { sellerEmail: req.query.email };
-      const result = await db.find(query).toArray();
       res.send(result);
     });
 
-    app.get("/my-toys/sort", async (req, res) => {
-      let query = {};
-      query = { sellerEmail: req.query.email };
-      const result = await db
-        .find(query)
-        .sort({ price: parseInt(req.query.sorting) })
-        .toArray();
-      res.send(result);
-    });
-
-
- // view details by id 
-    app.get("/all-toys/:id", async (req, res) => {
-      const query = { _id: new ObjectId(req.params.id) };
-      const result = await db.find(query).toArray();
-      res.send(result);
-    });
-
-
-
-
-// add product into database
-    app.post("/addtoys", async (req, res) => {
-      const data = {
-        name: req.body.name,
-        image: req.body.image,
-        price: parseInt(req.body.price),
-        rating: parseInt(req.body.rating),
-        quantity: parseInt(req.body.quantity),
-        description: req.body.description,
-        category: req.body.category,
-        sellerName: req.body.sellerName,
-        sellerEmail: req.body.sellerEmail,
+    app.post("/toys", async (req, res) => {
+      const toy = {
+        ...req.body,
+        price: +req.body.price,
+        shipping: +req.body.shipping,
+        quantity: +req.body.quantity,
+        discount: JSON.parse(req.body.discount),
       };
-      const result = await db.insertOne(data);
+      const result = await toys.insertOne(toy);
+
       res.send(result);
     });
 
-
-    // edit data  or update data
-    app.put("/", async (req, res) => {
-      const filter = { _id: new ObjectId(req.body.id) };
-      const options = { upsert: true };
-      const update = {
-        $set: {
-          name: req.body.name,
-          price: req.body.price,
-          quantity: req.body.quantity,
-          description: req.body.description,
-          rating: req.body.rating,
-        },
+    app.put("/toys", async (req, res) => {
+      const query = { _id: new ObjectId(req.query.id) };
+      const toy = {
+        ...req.body,
+        price: +req.body.price,
+        shipping: +req.body.shipping,
+        quantity: +req.body.quantity,
+        discount: JSON.parse(req.body.discount),
       };
-      const result = await db.updateOne(filter, update, options);
+      const result = await toys.updateOne(query, { $set: toy });
+
       res.send(result);
     });
 
+    app.delete("/toys", async (req, res) => {
+      const query = { _id: new ObjectId(req.query.id) };
+      const result = await toys.deleteOne(query);
 
-
-    // delete my toys  data 
-    app.delete("/my-toys", async (req, res) => {
-      const query = { _id: new ObjectId(req.body.data) };
-      const result = await db.deleteOne(query);
       res.send(result);
     });
 
-
-
-    // Send a ping to confirm a successful connection
-    await client.db("wonderkin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You are successfully connected to MongoDB!"
-    );
+    mdbClient
+      .db("admin")
+      .command({ ping: 1 })
+      .then((_) => console.log("Successfully connected to MongoDB!"));
+  } catch (err) {
+    console.log("Did not connect to MongoDB! " + err.message);
   } finally {
-    // await client.close();
+    await mdbClient.close();
   }
-}
-run().catch(console.dir);
+})();
 
+app.get("/", (req, res) => {
+  res.send("ToyState is running...");
+});
 
-
-app.listen(process.env.PORT || 3000, () => {console.log('listening')})
+app.listen(port, (_) => {
+  console.log(`ToyState API is running on port: ${port}`);
+});
