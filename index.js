@@ -22,7 +22,7 @@ const client = new MongoClient(uri, {
 [];
 async function run() {
   try {
-    client.connect();
+    // client.connect();
 
     const db = client.db("wonderkin").collection("collection0");
 
